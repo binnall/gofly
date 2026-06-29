@@ -290,6 +290,16 @@ tbody tr:hover {
   gap: 1rem;
 }
 
+.modal-head .btn-ghost {
+  color: var(--green-900);
+  background: rgba(13, 47, 33, 0.12);
+  border: 1px solid rgba(13, 47, 33, 0.22);
+}
+
+.modal-head .btn-ghost:hover {
+  background: rgba(13, 47, 33, 0.2);
+}
+
 .match-grid,
 .season-form,
 .default-season-form {

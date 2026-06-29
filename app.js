@@ -182,11 +182,42 @@ async function loadSeasons() {
   state.seasons = data || [];
   renderSeasons();
 
-  const defaultSeason = state.seasons.find((s) => s.is_default);
+  const defaultSeason = state.seasons.find((s) => s.is_default) || state.seasons[0] || null;
   if (defaultSeason && state.selectedSeason === "default") {
-    els.seasonLabel.textContent = `Current season: ${defaultSeason.name}`;
+    const fallbackText = defaultSeason.is_default ? "" : " (fallback)";
+    els.seasonLabel.textContent = `Current season${fallbackText}: ${defaultSeason.name}`;
     els.defaultSeasonSelect.value = String(defaultSeason.id);
   }
+}
+
+async function fetchSeasonLeaderboardRows(seasonId) {
+  const { data, error } = await supabase
+    .from("v_season_leaderboard")
+    .select("season_id, player_id, total_stableford_points, total_gross_score, total_net_score, rounds_played, wins")
+    .eq("season_id", seasonId);
+
+  if (error) throw error;
+
+  const playerIds = (data || []).map((x) => x.player_id);
+  if (!playerIds.length) {
+    return [];
+  }
+
+  const { data: profileRows, error: profileErr } = await supabase
+    .from("profiles")
+    .select("id, first_name, surname")
+    .in("id", playerIds);
+
+  if (profileErr) throw profileErr;
+
+  const profileById = new Map((profileRows || []).map((p) => [p.id, p]));
+  return (data || []).map((r) => {
+    const p = profileById.get(r.player_id);
+    return {
+      ...r,
+      player_name: p ? fullName(p) : "Unknown",
+    };
+  });
 }
 
 async function loadPlayers() {
@@ -227,49 +258,23 @@ async function loadProfile() {
 }
 
 async function loadLeaderboard() {
-  if (state.selectedSeason === "default") {
-    const { data, error } = await supabase
-      .from("v_default_season_leaderboard")
-      .select("player_id, first_name, surname, total_stableford_points, total_gross_score, total_net_score, rounds_played, wins");
+  if (!state.seasons.length) {
+    els.seasonLabel.textContent = "No seasons yet";
+    renderLeaderboard([]);
+    return;
+  }
 
-    if (error) throw error;
-    const rows = (data || []).map((r) => ({
-      ...r,
-      player_name: r.first_name ? `${r.first_name} ${r.surname}` : r.surname,
-    }));
+  if (state.selectedSeason === "default") {
+    const defaultSeason = state.seasons.find((s) => s.is_default) || state.seasons[0];
+    const rows = await fetchSeasonLeaderboardRows(defaultSeason.id);
+    const fallbackText = defaultSeason.is_default ? "" : " (fallback)";
+    els.seasonLabel.textContent = `Current season${fallbackText}: ${defaultSeason.name}`;
     renderLeaderboard(rows);
     return;
   }
 
   const selectedSeasonId = Number(state.selectedSeason);
-  const { data, error } = await supabase
-    .from("v_season_leaderboard")
-    .select("season_id, player_id, total_stableford_points, total_gross_score, total_net_score, rounds_played, wins")
-    .eq("season_id", selectedSeasonId);
-
-  if (error) throw error;
-
-  const playerIds = (data || []).map((x) => x.player_id);
-  if (!playerIds.length) {
-    renderLeaderboard([]);
-    return;
-  }
-
-  const { data: profileRows, error: profileErr } = await supabase
-    .from("profiles")
-    .select("id, first_name, surname")
-    .in("id", playerIds);
-
-  if (profileErr) throw profileErr;
-
-  const profileById = new Map((profileRows || []).map((p) => [p.id, p]));
-  const rows = (data || []).map((r) => {
-    const p = profileById.get(r.player_id);
-    return {
-      ...r,
-      player_name: p ? fullName(p) : "Unknown",
-    };
-  });
+  const rows = await fetchSeasonLeaderboardRows(selectedSeasonId);
 
   const season = state.seasons.find((s) => s.id === selectedSeasonId);
   els.seasonLabel.textContent = season ? `Selected season: ${season.name}` : "Selected season";
@@ -343,6 +348,7 @@ function resetMatchForm() {
   els.matchForm.reset();
   els.playerRows.innerHTML = "";
   addPlayerRow();
+  els.matchStatus.value = "completed";
 
   const defaultSeason = state.seasons.find((s) => s.is_default);
   if (defaultSeason) {
@@ -482,6 +488,9 @@ async function createMatch(event) {
   }
 
   toast("Match saved.");
+  if (matchPayload.status === "draft") {
+    toast("Saved as draft. Draft matches do not show on leaderboard.");
+  }
   els.matchModal.close();
   resetMatchForm();
   await loadLeaderboard();
