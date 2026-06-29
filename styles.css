@@ -373,6 +373,14 @@ tbody tr:hover {
     padding: 1.1rem 1.3rem;
   }
 
+  .layout.auth-hidden {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .layout.auth-hidden .content {
+    max-width: none;
+  }
+
   #leaderboardTab .stats-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

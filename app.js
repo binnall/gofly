@@ -13,6 +13,7 @@ const state = {
 };
 
 const els = {
+  appLayout: document.getElementById("appLayout"),
   authPanel: document.getElementById("authPanel"),
   loginForm: document.getElementById("loginForm"),
   surname: document.getElementById("surname"),
@@ -69,6 +70,7 @@ function fullName(profile) {
 
 function setAuthUiSignedIn(signedIn) {
   els.authPanel.classList.toggle("hidden", signedIn);
+  els.appLayout.classList.toggle("auth-hidden", signedIn);
   els.logoutBtn.classList.toggle("hidden", !signedIn);
   els.openMatchModalBtn.disabled = !signedIn;
 }
