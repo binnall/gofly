@@ -3,6 +3,8 @@
 
 begin;
 
+create extension if not exists pgcrypto;
+
 -- 1) Add pincode to profiles for surname+pincode login
 alter table public.profiles
   add column if not exists pincode text;
@@ -16,6 +18,22 @@ alter table public.profiles
 
 create index if not exists idx_profiles_surname_pincode
   on public.profiles (surname, pincode);
+
+-- 1b) Allow profile-only users by removing auth.users foreign key and adding UUID default
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_id_fkey'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles drop constraint profiles_id_fkey;
+  end if;
+end $$;
+
+alter table public.profiles
+  alter column id set default gen_random_uuid();
 
 -- 2) Disable RLS so anonymous browser calls can read/write
 alter table public.profiles disable row level security;

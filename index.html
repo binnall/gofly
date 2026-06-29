@@ -47,6 +47,12 @@
       </aside>
 
       <section class="content">
+        <div class="tab-bar">
+          <button id="leaderboardTabBtn" type="button" class="tab-btn active">Leaderboard</button>
+          <button id="adminTabBtn" type="button" class="tab-btn hidden">Admin</button>
+        </div>
+
+        <section id="leaderboardTab" class="tab-panel">
         <div class="panel toolbar">
           <div>
             <h2>Leaderboard</h2>
@@ -79,12 +85,36 @@
           </table>
           <div id="leaderboardCards" class="mobile-cards"></div>
         </div>
+        </section>
 
-        <section id="adminSection" class="panel hidden">
+        <section id="adminSection" class="panel tab-panel hidden">
           <div class="admin-head">
             <h2>Admin Console</h2>
-            <p class="muted">Create seasons and set default season.</p>
+            <p class="muted">Create users, create seasons and set default season.</p>
           </div>
+
+          <form id="createUserForm" class="season-form">
+            <label>
+              First name
+              <input id="newUserFirstName" type="text" maxlength="80" />
+            </label>
+            <label>
+              Surname
+              <input id="newUserSurname" type="text" required maxlength="80" />
+            </label>
+            <label>
+              Pincode
+              <input id="newUserPincode" type="text" required maxlength="32" />
+            </label>
+            <label>
+              Role
+              <select id="newUserRole">
+                <option value="player">Player</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <button type="submit" class="btn btn-primary">Create user</button>
+          </form>
 
           <form id="seasonForm" class="season-form">
             <label>
@@ -111,8 +141,8 @@
           </form>
 
           <div class="admin-note">
-            <h3>Player setup</h3>
-            <p class="muted">Player account creation should be done through a secure server or Supabase edge function using a service role key.</p>
+            <h3>Lightweight mode</h3>
+            <p class="muted">Users are stored directly in profiles with surname and pincode login.</p>
           </div>
         </section>
       </section>

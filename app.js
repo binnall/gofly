@@ -9,6 +9,7 @@ const state = {
   seasons: [],
   players: [],
   selectedSeason: "default",
+  activeTab: "leaderboard",
 };
 
 const els = {
@@ -17,6 +18,9 @@ const els = {
   surname: document.getElementById("surname"),
   pincode: document.getElementById("pincode"),
   logoutBtn: document.getElementById("logoutBtn"),
+  leaderboardTabBtn: document.getElementById("leaderboardTabBtn"),
+  adminTabBtn: document.getElementById("adminTabBtn"),
+  leaderboardTab: document.getElementById("leaderboardTab"),
   openMatchModalBtn: document.getElementById("openMatchModalBtn"),
   seasonSelect: document.getElementById("seasonSelect"),
   seasonLabel: document.getElementById("seasonLabel"),
@@ -29,6 +33,11 @@ const els = {
   seasonName: document.getElementById("seasonName"),
   seasonStart: document.getElementById("seasonStart"),
   seasonEnd: document.getElementById("seasonEnd"),
+  createUserForm: document.getElementById("createUserForm"),
+  newUserFirstName: document.getElementById("newUserFirstName"),
+  newUserSurname: document.getElementById("newUserSurname"),
+  newUserPincode: document.getElementById("newUserPincode"),
+  newUserRole: document.getElementById("newUserRole"),
   defaultSeasonForm: document.getElementById("defaultSeasonForm"),
   defaultSeasonSelect: document.getElementById("defaultSeasonSelect"),
   matchModal: document.getElementById("matchModal"),
@@ -62,6 +71,19 @@ function setAuthUiSignedIn(signedIn) {
   els.authPanel.classList.toggle("hidden", signedIn);
   els.logoutBtn.classList.toggle("hidden", !signedIn);
   els.openMatchModalBtn.disabled = !signedIn;
+}
+
+function setActiveTab(tabName) {
+  state.activeTab = tabName;
+  const isAdminTab = tabName === "admin";
+
+  els.leaderboardTabBtn.classList.toggle("active", !isAdminTab);
+  els.adminTabBtn.classList.toggle("active", isAdminTab);
+  els.leaderboardTab.classList.toggle("hidden", isAdminTab);
+
+  const isAdmin = state.profile?.role === "admin";
+  const showAdminSection = isAdmin && isAdminTab;
+  els.adminSection.classList.toggle("hidden", !showAdminSection);
 }
 
 function renderSeasons() {
@@ -192,13 +214,14 @@ async function loadProfile() {
   if (error || !data || !data.is_active) {
     localStorage.removeItem(SESSION_PROFILE_KEY);
     state.profile = null;
+    els.adminTabBtn.classList.add("hidden");
     els.adminSection.classList.add("hidden");
     return;
   }
 
   state.profile = data;
   const isAdmin = data.role === "admin";
-  els.adminSection.classList.toggle("hidden", !isAdmin);
+  els.adminTabBtn.classList.toggle("hidden", !isAdmin);
 }
 
 async function loadLeaderboard() {
@@ -350,6 +373,35 @@ async function createSeason(event) {
   await loadSeasons();
 }
 
+async function createUser(event) {
+  event.preventDefault();
+  if (!state.profile || state.profile.role !== "admin") {
+    toast("Only admins can create users.", true);
+    return;
+  }
+
+  const payload = {
+    id: crypto.randomUUID(),
+    first_name: els.newUserFirstName.value.trim() || null,
+    surname: els.newUserSurname.value.trim(),
+    pincode: els.newUserPincode.value,
+    role: els.newUserRole.value,
+    is_active: true,
+    created_by: state.profile.id,
+  };
+
+  const { error } = await supabase.from("profiles").insert(payload);
+  if (error) {
+    toast(error.message, true);
+    return;
+  }
+
+  els.createUserForm.reset();
+  toast("User created.");
+  await loadPlayers();
+  await loadLeaderboard();
+}
+
 async function setDefaultSeason(event) {
   event.preventDefault();
   const seasonId = Number(els.defaultSeasonSelect.value);
@@ -461,7 +513,10 @@ async function login(event) {
 async function logout() {
   localStorage.removeItem(SESSION_PROFILE_KEY);
   state.profile = null;
+  state.activeTab = "leaderboard";
   setAuthUiSignedIn(false);
+  els.adminTabBtn.classList.add("hidden");
+  setActiveTab("leaderboard");
   els.adminSection.classList.add("hidden");
   toast("Signed out.");
 }
@@ -469,7 +524,14 @@ async function logout() {
 async function afterProfileChanged() {
   setAuthUiSignedIn(Boolean(state.profile));
   const isAdmin = state.profile?.role === "admin";
-  els.adminSection.classList.toggle("hidden", !isAdmin);
+  els.adminTabBtn.classList.toggle("hidden", !isAdmin);
+
+  if (!isAdmin && state.activeTab === "admin") {
+    setActiveTab("leaderboard");
+  } else {
+    setActiveTab(state.activeTab);
+  }
+
   await loadSeasons();
   await loadPlayers();
   await loadLeaderboard();
@@ -478,6 +540,8 @@ async function afterProfileChanged() {
 function bindEvents() {
   els.loginForm.addEventListener("submit", login);
   els.logoutBtn.addEventListener("click", logout);
+  els.leaderboardTabBtn.addEventListener("click", () => setActiveTab("leaderboard"));
+  els.adminTabBtn.addEventListener("click", () => setActiveTab("admin"));
 
   els.seasonSelect.addEventListener("change", async (event) => {
     state.selectedSeason = event.target.value;
@@ -489,6 +553,7 @@ function bindEvents() {
   });
 
   els.seasonForm.addEventListener("submit", createSeason);
+  els.createUserForm.addEventListener("submit", createUser);
   els.defaultSeasonForm.addEventListener("submit", setDefaultSeason);
 
   els.openMatchModalBtn.addEventListener("click", () => {
@@ -509,6 +574,7 @@ function bindEvents() {
 
 async function init() {
   bindEvents();
+  setActiveTab("leaderboard");
 
   const today = new Date().toISOString().slice(0, 10);
   els.matchDate.value = today;

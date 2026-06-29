@@ -170,6 +170,33 @@ label {
   gap: 1rem;
 }
 
+.tab-bar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  border: 1px solid rgba(31, 95, 58, 0.25);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--green-900);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  color: white;
+  background: linear-gradient(120deg, var(--green-700), var(--green-500));
+  border-color: transparent;
+}
+
+.tab-panel {
+  display: grid;
+  gap: 1rem;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
