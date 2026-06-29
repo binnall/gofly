@@ -91,6 +91,9 @@ h1 {
   grid-template-columns: 1fr;
   gap: 1rem;
   padding: 1rem;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 .panel {
@@ -99,6 +102,7 @@ h1 {
   background: rgba(255, 255, 255, 0.83);
   box-shadow: var(--shadow);
   padding: 1rem;
+  width: 100%;
 }
 
 .auth-panel {
@@ -110,6 +114,11 @@ h1 {
   align-items: end;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.toolbar .filters {
+  min-width: min(280px, 100%);
 }
 
 .filters select,
@@ -359,8 +368,13 @@ tbody tr:hover {
 
 @media (min-width: 900px) {
   .layout {
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 1.2rem;
     padding: 1.1rem 1.3rem;
+  }
+
+  #leaderboardTab .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .match-grid,
@@ -375,6 +389,23 @@ tbody tr:hover {
 
   .player-row .row-head {
     grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1200px) {
+  #leaderboardTab {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  #leaderboardTab .toolbar,
+  #leaderboardTab .stats-grid,
+  #leaderboardTab .table-wrap {
+    grid-column: 1 / -1;
+  }
+
+  #leaderboardTab .table-wrap {
+    min-height: 420px;
   }
 }
 
