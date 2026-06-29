@@ -8,6 +8,8 @@ const state = {
   profile: null,
   seasons: [],
   players: [],
+  adminPlayers: [],
+  adminMatches: [],
   selectedSeason: "default",
   activeTab: "leaderboard",
 };
@@ -41,6 +43,17 @@ const els = {
   newUserRole: document.getElementById("newUserRole"),
   defaultSeasonForm: document.getElementById("defaultSeasonForm"),
   defaultSeasonSelect: document.getElementById("defaultSeasonSelect"),
+  adminPlayersBody: document.getElementById("adminPlayersBody"),
+  adminMatchesBody: document.getElementById("adminMatchesBody"),
+  playerEditorDialog: document.getElementById("playerEditorDialog"),
+  playerEditorForm: document.getElementById("playerEditorForm"),
+  closePlayerEditorBtn: document.getElementById("closePlayerEditorBtn"),
+  editPlayerId: document.getElementById("editPlayerId"),
+  editPlayerFirstName: document.getElementById("editPlayerFirstName"),
+  editPlayerSurname: document.getElementById("editPlayerSurname"),
+  editPlayerPincode: document.getElementById("editPlayerPincode"),
+  editPlayerRole: document.getElementById("editPlayerRole"),
+  editPlayerIsActive: document.getElementById("editPlayerIsActive"),
   matchModal: document.getElementById("matchModal"),
   closeMatchModalBtn: document.getElementById("closeMatchModalBtn"),
   matchForm: document.getElementById("matchForm"),
@@ -50,6 +63,16 @@ const els = {
   matchStatus: document.getElementById("matchStatus"),
   addPlayerRowBtn: document.getElementById("addPlayerRowBtn"),
   playerRows: document.getElementById("playerRows"),
+  matchEditorDialog: document.getElementById("matchEditorDialog"),
+  matchEditorForm: document.getElementById("matchEditorForm"),
+  closeMatchEditorBtn: document.getElementById("closeMatchEditorBtn"),
+  editMatchId: document.getElementById("editMatchId"),
+  editMatchSeason: document.getElementById("editMatchSeason"),
+  editMatchDate: document.getElementById("editMatchDate"),
+  editMatchCourse: document.getElementById("editMatchCourse"),
+  editMatchStatus: document.getElementById("editMatchStatus"),
+  adminAddPlayerRowBtn: document.getElementById("adminAddPlayerRowBtn"),
+  adminMatchPlayerRows: document.getElementById("adminMatchPlayerRows"),
 };
 
 function toast(message, isError = false) {
@@ -99,6 +122,9 @@ function renderSeasons() {
     .map((s) => `<option value="${s.id}">${s.name}</option>`)
     .join("");
   els.matchSeason.innerHTML = state.seasons
+    .map((s) => `<option value="${s.id}">${s.name}</option>`)
+    .join("");
+  els.editMatchSeason.innerHTML = state.seasons
     .map((s) => `<option value="${s.id}">${s.name}</option>`)
     .join("");
 
@@ -172,6 +198,71 @@ function renderLeaderboard(rows) {
   renderStats(rankedRows);
 }
 
+function adminPlayerOptionMarkup(selected = "") {
+  const source = state.adminPlayers.length ? state.adminPlayers : state.players;
+  return source
+    .map((p) => {
+      const label = fullName(p);
+      const suffix = p.is_active === false ? " (inactive)" : "";
+      const isSelected = selected === p.id ? "selected" : "";
+      return `<option value="${p.id}" ${isSelected}>${label}${suffix}</option>`;
+    })
+    .join("");
+}
+
+function renderAdminPlayers() {
+  if (!els.adminPlayersBody) return;
+  if (!state.adminPlayers.length) {
+    els.adminPlayersBody.innerHTML = `<tr><td colspan="6">No players found.</td></tr>`;
+    return;
+  }
+
+  els.adminPlayersBody.innerHTML = state.adminPlayers
+    .map(
+      (p) => `
+      <tr>
+        <td>${p.first_name || "-"}</td>
+        <td>${p.surname}</td>
+        <td>${p.role}</td>
+        <td>${p.is_active ? "Yes" : "No"}</td>
+        <td>${p.pincode || "-"}</td>
+        <td>
+          <div class="actions-cell">
+            <button type="button" class="btn btn-secondary admin-edit-player" data-player-id="${p.id}">Edit</button>
+          </div>
+        </td>
+      </tr>`
+    )
+    .join("");
+}
+
+function renderAdminMatches() {
+  if (!els.adminMatchesBody) return;
+  if (!state.adminMatches.length) {
+    els.adminMatchesBody.innerHTML = `<tr><td colspan="6">No matches found.</td></tr>`;
+    return;
+  }
+
+  els.adminMatchesBody.innerHTML = state.adminMatches
+    .map(
+      (m) => `
+      <tr>
+        <td>${m.played_on}</td>
+        <td>${m.season_name || "Unknown"}</td>
+        <td>${m.course_name}</td>
+        <td>${m.status}</td>
+        <td>${m.player_count}</td>
+        <td>
+          <div class="actions-cell">
+            <button type="button" class="btn btn-secondary admin-edit-match" data-match-id="${m.id}">Edit</button>
+            <button type="button" class="btn btn-danger admin-delete-match" data-match-id="${m.id}">Delete</button>
+          </div>
+        </td>
+      </tr>`
+    )
+    .join("");
+}
+
 async function loadSeasons() {
   const { data, error } = await supabase
     .from("seasons")
@@ -229,6 +320,60 @@ async function loadPlayers() {
 
   if (error) throw error;
   state.players = data || [];
+}
+
+async function loadAdminPlayers() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, surname, role, is_active, pincode")
+    .order("surname", { ascending: true });
+
+  if (error) throw error;
+  state.adminPlayers = data || [];
+  renderAdminPlayers();
+}
+
+async function loadAdminMatches() {
+  const { data: matches, error } = await supabase
+    .from("matches")
+    .select("id, season_id, played_on, course_name, status")
+    .order("played_on", { ascending: false });
+
+  if (error) throw error;
+
+  const matchIds = (matches || []).map((m) => m.id);
+  let counts = [];
+
+  if (matchIds.length) {
+    const { data: countRows, error: countError } = await supabase
+      .from("match_players")
+      .select("match_id")
+      .in("match_id", matchIds);
+
+    if (countError) throw countError;
+    counts = countRows || [];
+  }
+
+  const countsByMatch = counts.reduce((acc, row) => {
+    acc.set(row.match_id, (acc.get(row.match_id) || 0) + 1);
+    return acc;
+  }, new Map());
+
+  state.adminMatches = (matches || []).map((m) => {
+    const season = state.seasons.find((s) => s.id === m.season_id);
+    return {
+      ...m,
+      season_name: season?.name || `Season ${m.season_id}`,
+      player_count: countsByMatch.get(m.id) || 0,
+    };
+  });
+
+  renderAdminMatches();
+}
+
+async function loadAdminData() {
+  if (state.profile?.role !== "admin") return;
+  await Promise.all([loadAdminPlayers(), loadAdminMatches()]);
 }
 
 async function loadProfile() {
@@ -344,6 +489,58 @@ function readPlayerRows() {
   }));
 }
 
+function addAdminMatchPlayerRow(rowData = {}) {
+  const row = document.createElement("div");
+  row.className = "player-row";
+
+  row.innerHTML = `
+    <div class="row-head">
+      <strong>Player Entry</strong>
+      <button type="button" class="btn btn-ghost remove-player">Remove</button>
+    </div>
+    <label>
+      Player
+      <select class="player-id" required>
+        <option value="">Select player</option>
+        ${adminPlayerOptionMarkup(rowData.player_id || "")}
+      </select>
+    </label>
+    <label>
+      Handicap
+      <input class="handicap" type="number" min="0" max="54" step="0.1" required value="${rowData.handicap || ""}" />
+    </label>
+    <label>
+      Gross
+      <input class="gross" type="number" min="40" max="200" required value="${rowData.gross_score || ""}" />
+    </label>
+    <label>
+      Net
+      <input class="net" type="number" min="20" max="200" required value="${rowData.net_score || ""}" />
+    </label>
+    <label>
+      Stableford
+      <input class="stableford" type="number" min="0" max="72" required value="${rowData.stableford_points || ""}" />
+    </label>
+  `;
+
+  row.querySelector(".remove-player").addEventListener("click", () => {
+    row.remove();
+  });
+
+  els.adminMatchPlayerRows.appendChild(row);
+}
+
+function readAdminMatchPlayerRows() {
+  const rows = Array.from(els.adminMatchPlayerRows.querySelectorAll(".player-row"));
+  return rows.map((row) => ({
+    player_id: row.querySelector(".player-id").value,
+    handicap: Number(row.querySelector(".handicap").value),
+    gross_score: Number(row.querySelector(".gross").value),
+    net_score: Number(row.querySelector(".net").value),
+    stableford_points: Number(row.querySelector(".stableford").value),
+  }));
+}
+
 function resetMatchForm() {
   els.matchForm.reset();
   els.playerRows.innerHTML = "";
@@ -379,6 +576,7 @@ async function createSeason(event) {
   els.seasonForm.reset();
   toast("Season created.");
   await loadSeasons();
+  await loadAdminMatches();
 }
 
 async function createUser(event) {
@@ -407,6 +605,162 @@ async function createUser(event) {
   els.createUserForm.reset();
   toast("User created.");
   await loadPlayers();
+  await loadAdminPlayers();
+  await loadLeaderboard();
+}
+
+function openPlayerEditor(playerId) {
+  const player = state.adminPlayers.find((p) => p.id === playerId);
+  if (!player) {
+    toast("Player not found.", true);
+    return;
+  }
+
+  els.editPlayerId.value = player.id;
+  els.editPlayerFirstName.value = player.first_name || "";
+  els.editPlayerSurname.value = player.surname || "";
+  els.editPlayerPincode.value = player.pincode || "";
+  els.editPlayerRole.value = player.role;
+  els.editPlayerIsActive.value = String(Boolean(player.is_active));
+  els.playerEditorDialog.showModal();
+}
+
+async function savePlayerEditor(event) {
+  event.preventDefault();
+
+  const playerId = els.editPlayerId.value;
+  if (!playerId) return;
+
+  const payload = {
+    first_name: els.editPlayerFirstName.value.trim() || null,
+    surname: els.editPlayerSurname.value.trim(),
+    pincode: els.editPlayerPincode.value,
+    role: els.editPlayerRole.value,
+    is_active: els.editPlayerIsActive.value === "true",
+  };
+
+  const { error } = await supabase.from("profiles").update(payload).eq("id", playerId);
+  if (error) {
+    toast(error.message, true);
+    return;
+  }
+
+  els.playerEditorDialog.close();
+  toast("Player updated.");
+  await loadPlayers();
+  await loadAdminPlayers();
+  await loadLeaderboard();
+}
+
+async function openMatchEditor(matchId) {
+  const { data: match, error } = await supabase
+    .from("matches")
+    .select("id, season_id, played_on, course_name, status")
+    .eq("id", matchId)
+    .single();
+
+  if (error || !match) {
+    toast(error?.message || "Match not found.", true);
+    return;
+  }
+
+  const { data: players, error: playersError } = await supabase
+    .from("match_players")
+    .select("player_id, handicap, gross_score, net_score, stableford_points")
+    .eq("match_id", matchId)
+    .order("id", { ascending: true });
+
+  if (playersError) {
+    toast(playersError.message, true);
+    return;
+  }
+
+  els.editMatchId.value = String(match.id);
+  els.editMatchSeason.value = String(match.season_id);
+  els.editMatchDate.value = match.played_on;
+  els.editMatchCourse.value = match.course_name;
+  els.editMatchStatus.value = match.status;
+
+  els.adminMatchPlayerRows.innerHTML = "";
+  (players || []).forEach((row) => addAdminMatchPlayerRow(row));
+  if (!players?.length) addAdminMatchPlayerRow();
+
+  els.matchEditorDialog.showModal();
+}
+
+async function saveMatchEditor(event) {
+  event.preventDefault();
+
+  const matchId = Number(els.editMatchId.value);
+  if (!matchId) return;
+
+  const playerRows = readAdminMatchPlayerRows();
+  if (!playerRows.length || playerRows.some((r) => !r.player_id)) {
+    toast("Add at least one valid player row.", true);
+    return;
+  }
+
+  const uniqueCount = new Set(playerRows.map((p) => p.player_id)).size;
+  if (uniqueCount !== playerRows.length) {
+    toast("Duplicate players are not allowed in one match.", true);
+    return;
+  }
+
+  const matchPayload = {
+    season_id: Number(els.editMatchSeason.value),
+    played_on: els.editMatchDate.value,
+    course_name: els.editMatchCourse.value.trim(),
+    status: els.editMatchStatus.value,
+  };
+
+  const { error: matchError } = await supabase.from("matches").update(matchPayload).eq("id", matchId);
+  if (matchError) {
+    toast(matchError.message, true);
+    return;
+  }
+
+  const { error: deleteError } = await supabase.from("match_players").delete().eq("match_id", matchId);
+  if (deleteError) {
+    toast(deleteError.message, true);
+    return;
+  }
+
+  const payload = playerRows.map((r) => ({
+    match_id: matchId,
+    player_id: r.player_id,
+    handicap: r.handicap,
+    gross_score: r.gross_score,
+    net_score: r.net_score,
+    stableford_points: r.stableford_points,
+  }));
+
+  const { error: insertError } = await supabase.from("match_players").insert(payload);
+  if (insertError) {
+    toast(insertError.message, true);
+    return;
+  }
+
+  els.matchEditorDialog.close();
+  toast("Match updated.");
+  await loadAdminMatches();
+  await loadLeaderboard();
+}
+
+async function deleteMatch(matchId) {
+  const target = state.adminMatches.find((m) => m.id === matchId);
+  const course = target?.course_name || "this match";
+  if (!window.confirm(`Delete ${course}? This cannot be undone.`)) {
+    return;
+  }
+
+  const { error } = await supabase.from("matches").delete().eq("id", matchId);
+  if (error) {
+    toast(error.message, true);
+    return;
+  }
+
+  toast("Match deleted.");
+  await loadAdminMatches();
   await loadLeaderboard();
 }
 
@@ -493,6 +847,7 @@ async function createMatch(event) {
   }
   els.matchModal.close();
   resetMatchForm();
+  await loadAdminMatches();
   await loadLeaderboard();
 }
 
@@ -545,6 +900,7 @@ async function afterProfileChanged() {
 
   await loadSeasons();
   await loadPlayers();
+  await loadAdminData();
   await loadLeaderboard();
 }
 
@@ -566,6 +922,10 @@ function bindEvents() {
   els.seasonForm.addEventListener("submit", createSeason);
   els.createUserForm.addEventListener("submit", createUser);
   els.defaultSeasonForm.addEventListener("submit", setDefaultSeason);
+  els.playerEditorForm.addEventListener("submit", savePlayerEditor);
+  els.closePlayerEditorBtn.addEventListener("click", () => els.playerEditorDialog.close());
+  els.matchEditorForm.addEventListener("submit", saveMatchEditor);
+  els.closeMatchEditorBtn.addEventListener("click", () => els.matchEditorDialog.close());
 
   els.openMatchModalBtn.addEventListener("click", () => {
     resetMatchForm();
@@ -578,6 +938,33 @@ function bindEvents() {
 
   els.addPlayerRowBtn.addEventListener("click", () => {
     addPlayerRow();
+  });
+
+  els.adminAddPlayerRowBtn.addEventListener("click", () => {
+    addAdminMatchPlayerRow();
+  });
+
+  els.adminPlayersBody.addEventListener("click", (event) => {
+    const target = event.target.closest(".admin-edit-player");
+    if (!target) return;
+    const playerId = target.dataset.playerId;
+    if (!playerId) return;
+    openPlayerEditor(playerId);
+  });
+
+  els.adminMatchesBody.addEventListener("click", async (event) => {
+    const editBtn = event.target.closest(".admin-edit-match");
+    if (editBtn) {
+      const matchId = Number(editBtn.dataset.matchId);
+      if (matchId) await openMatchEditor(matchId);
+      return;
+    }
+
+    const deleteBtn = event.target.closest(".admin-delete-match");
+    if (deleteBtn) {
+      const matchId = Number(deleteBtn.dataset.matchId);
+      if (matchId) await deleteMatch(matchId);
+    }
   });
 
   els.matchForm.addEventListener("submit", createMatch);

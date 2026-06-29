@@ -308,6 +308,33 @@ tbody tr:hover {
   margin-bottom: 0.9rem;
 }
 
+.admin-list-wrap {
+  display: grid;
+  gap: 0.7rem;
+}
+
+#adminPlayersTable,
+#adminMatchesTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.actions-cell .btn {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.btn-danger {
+  color: #fff;
+  background: linear-gradient(120deg, #b55d3d, #9f3f2e);
+}
+
 .player-rows {
   display: grid;
   gap: 0.8rem;

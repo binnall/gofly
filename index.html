@@ -140,6 +140,46 @@
             <button type="submit" class="btn btn-secondary">Set default</button>
           </form>
 
+          <section class="admin-list-wrap table-wrap">
+            <div class="admin-head">
+              <h3>Players</h3>
+              <p class="muted">View and edit players, role, active status and pincode.</p>
+            </div>
+            <table id="adminPlayersTable">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Surname</th>
+                  <th>Role</th>
+                  <th>Active</th>
+                  <th>Pincode</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminPlayersBody"></tbody>
+            </table>
+          </section>
+
+          <section class="admin-list-wrap table-wrap">
+            <div class="admin-head">
+              <h3>Matches</h3>
+              <p class="muted">View matches and edit or delete as needed.</p>
+            </div>
+            <table id="adminMatchesTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Season</th>
+                  <th>Course</th>
+                  <th>Status</th>
+                  <th>Players</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminMatchesBody"></tbody>
+            </table>
+          </section>
+
           <div class="admin-note">
             <h3>Lightweight mode</h3>
             <p class="muted">Users are stored directly in profiles with surname and pincode login.</p>
@@ -147,6 +187,50 @@
         </section>
       </section>
     </main>
+
+    <dialog id="playerEditorDialog" class="match-modal">
+      <form id="playerEditorForm" method="dialog" class="panel">
+        <div class="modal-head">
+          <h2>Edit Player</h2>
+          <button id="closePlayerEditorBtn" type="button" class="btn btn-ghost">Close</button>
+        </div>
+
+        <input id="editPlayerId" type="hidden" />
+
+        <div class="match-grid">
+          <label>
+            First name
+            <input id="editPlayerFirstName" type="text" maxlength="80" />
+          </label>
+          <label>
+            Surname
+            <input id="editPlayerSurname" type="text" required maxlength="80" />
+          </label>
+          <label>
+            Pincode
+            <input id="editPlayerPincode" type="text" required maxlength="32" />
+          </label>
+          <label>
+            Role
+            <select id="editPlayerRole" required>
+              <option value="player">Player</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>
+            Active
+            <select id="editPlayerIsActive" required>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Save player</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="matchModal" class="match-modal">
       <form id="matchForm" method="dialog" class="panel">
@@ -186,6 +270,51 @@
 
         <div class="modal-actions">
           <button id="saveMatchBtn" type="submit" class="btn btn-primary">Save match</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="matchEditorDialog" class="match-modal">
+      <form id="matchEditorForm" method="dialog" class="panel">
+        <div class="modal-head">
+          <h2>Edit Match</h2>
+          <button id="closeMatchEditorBtn" type="button" class="btn btn-ghost">Close</button>
+        </div>
+
+        <input id="editMatchId" type="hidden" />
+
+        <div class="match-grid">
+          <label>
+            Season
+            <select id="editMatchSeason" required></select>
+          </label>
+          <label>
+            Date played
+            <input id="editMatchDate" type="date" required />
+          </label>
+          <label>
+            Course
+            <input id="editMatchCourse" type="text" required maxlength="120" />
+          </label>
+          <label>
+            Status
+            <select id="editMatchStatus" required>
+              <option value="completed">Completed</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="players-head">
+          <h3>Players in match</h3>
+          <button id="adminAddPlayerRowBtn" type="button" class="btn btn-secondary">Add player</button>
+        </div>
+
+        <div id="adminMatchPlayerRows" class="player-rows"></div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Save match</button>
         </div>
       </form>
     </dialog>
