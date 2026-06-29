@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golfly Leaderboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-noise" aria-hidden="true"></div>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">G</div>
+        <div>
+          <p class="eyebrow">Stableford Tracker</p>
+          <h1>Golfly Clubhouse</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="openMatchModalBtn" class="btn btn-primary" disabled>Create Match</button>
+        <button id="logoutBtn" class="btn btn-ghost hidden">Log out</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel auth-panel" id="authPanel">
+        <h2>Player Login</h2>
+        <p class="muted">Use your surname and pincode.</p>
+        <form id="loginForm" class="stack">
+          <label>
+            Surname
+            <input id="surname" name="surname" type="text" required maxlength="80" autocomplete="username" />
+          </label>
+          <label>
+            Pincode
+            <input id="pincode" name="pincode" type="password" required maxlength="32" autocomplete="current-password" />
+          </label>
+          <button class="btn btn-primary" type="submit">Sign in</button>
+          <p class="hint">Login is resolved as surname@golfly.local behind the scenes.</p>
+        </form>
+      </aside>
+
+      <section class="content">
+        <div class="panel toolbar">
+          <div>
+            <h2>Leaderboard</h2>
+            <p class="muted" id="seasonLabel">Current Season</p>
+          </div>
+          <div class="filters">
+            <label>
+              Season
+              <select id="seasonSelect"></select>
+            </label>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="panel table-wrap">
+          <table id="leaderboardTable">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Stableford</th>
+                <th>Gross</th>
+                <th>Net</th>
+                <th>Wins</th>
+                <th>Rounds</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody"></tbody>
+          </table>
+          <div id="leaderboardCards" class="mobile-cards"></div>
+        </div>
+
+        <section id="adminSection" class="panel hidden">
+          <div class="admin-head">
+            <h2>Admin Console</h2>
+            <p class="muted">Create seasons and set default season.</p>
+          </div>
+
+          <form id="seasonForm" class="season-form">
+            <label>
+              Season name
+              <input id="seasonName" type="text" required maxlength="100" />
+            </label>
+            <label>
+              Start date
+              <input id="seasonStart" type="date" required />
+            </label>
+            <label>
+              End date
+              <input id="seasonEnd" type="date" required />
+            </label>
+            <button type="submit" class="btn btn-primary">Create season</button>
+          </form>
+
+          <form id="defaultSeasonForm" class="default-season-form">
+            <label>
+              Default season
+              <select id="defaultSeasonSelect"></select>
+            </label>
+            <button type="submit" class="btn btn-secondary">Set default</button>
+          </form>
+
+          <div class="admin-note">
+            <h3>Player setup</h3>
+            <p class="muted">Player account creation should be done through a secure server or Supabase edge function using a service role key.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="matchModal" class="match-modal">
+      <form id="matchForm" method="dialog" class="panel">
+        <div class="modal-head">
+          <h2>Create Match</h2>
+          <button id="closeMatchModalBtn" type="button" class="btn btn-ghost">Close</button>
+        </div>
+
+        <div class="match-grid">
+          <label>
+            Season
+            <select id="matchSeason" required></select>
+          </label>
+          <label>
+            Date played
+            <input id="matchDate" type="date" required />
+          </label>
+          <label>
+            Course
+            <input id="matchCourse" type="text" required maxlength="120" />
+          </label>
+          <label>
+            Status
+            <select id="matchStatus" required>
+              <option value="draft">Draft</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="players-head">
+          <h3>Players in match</h3>
+          <button id="addPlayerRowBtn" type="button" class="btn btn-secondary">Add player</button>
+        </div>
+
+        <div id="playerRows" class="player-rows"></div>
+
+        <div class="modal-actions">
+          <button id="saveMatchBtn" type="submit" class="btn btn-primary">Save match</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
