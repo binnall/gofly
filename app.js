@@ -2,9 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SESSION_PROFILE_KEY = "golfly_profile_id";
 
 const state = {
-  user: null,
   profile: null,
   seasons: [],
   players: [],
@@ -50,15 +50,6 @@ function toast(message, isError = false) {
   toast.timer = window.setTimeout(() => {
     els.toast.classList.remove("show");
   }, 2800);
-}
-
-function surnameToEmail(surname) {
-  return `${surname.trim().toLowerCase().replace(/\s+/g, ".")}@golfly.local`;
-}
-
-function formatDate(dateLike) {
-  if (!dateLike) return "-";
-  return new Date(dateLike).toLocaleDateString();
 }
 
 function fullName(profile) {
@@ -186,18 +177,25 @@ async function loadPlayers() {
 }
 
 async function loadProfile() {
-  if (!state.user) {
+  const profileId = localStorage.getItem(SESSION_PROFILE_KEY);
+  if (!profileId) {
     state.profile = null;
     return;
   }
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, first_name, surname, role")
-    .eq("id", state.user.id)
+    .select("id, first_name, surname, role, is_active")
+    .eq("id", profileId)
     .single();
 
-  if (error) throw error;
+  if (error || !data || !data.is_active) {
+    localStorage.removeItem(SESSION_PROFILE_KEY);
+    state.profile = null;
+    els.adminSection.classList.add("hidden");
+    return;
+  }
+
   state.profile = data;
   const isAdmin = data.role === "admin";
   els.adminSection.classList.toggle("hidden", !isAdmin);
@@ -332,13 +330,13 @@ function resetMatchForm() {
 
 async function createSeason(event) {
   event.preventDefault();
-  if (!state.user) return;
+  if (!state.profile) return;
 
   const payload = {
     name: els.seasonName.value.trim(),
     start_date: els.seasonStart.value,
     end_date: els.seasonEnd.value,
-    created_by: state.user.id,
+    created_by: state.profile.id,
   };
 
   const { error } = await supabase.from("seasons").insert(payload);
@@ -378,7 +376,7 @@ async function setDefaultSeason(event) {
 async function createMatch(event) {
   event.preventDefault();
 
-  if (!state.user) {
+  if (!state.profile) {
     toast("Please sign in first.", true);
     return;
   }
@@ -400,7 +398,7 @@ async function createMatch(event) {
     played_on: els.matchDate.value,
     course_name: els.matchCourse.value.trim(),
     status: els.matchStatus.value,
-    created_by: state.user.id,
+    created_by: state.profile.id,
   };
 
   const { data: match, error: matchError } = await supabase
@@ -440,36 +438,38 @@ async function login(event) {
 
   const surname = els.surname.value.trim();
   const pincode = els.pincode.value;
-  const email = surnameToEmail(surname);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, surname, role, is_active")
+    .eq("surname", surname)
+    .eq("pincode", pincode)
+    .eq("is_active", true)
+    .maybeSingle();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password: pincode,
-  });
-
-  if (error) {
-    toast(error.message, true);
+  if (error || !data) {
+    toast(error?.message || "Invalid surname or pincode.", true);
     return;
   }
 
-  state.user = data.user;
-  await afterAuthChanged();
+  localStorage.setItem(SESSION_PROFILE_KEY, data.id);
+  state.profile = data;
+  await afterProfileChanged();
   els.loginForm.reset();
   toast("Signed in.");
 }
 
 async function logout() {
-  await supabase.auth.signOut();
-  state.user = null;
+  localStorage.removeItem(SESSION_PROFILE_KEY);
   state.profile = null;
   setAuthUiSignedIn(false);
   els.adminSection.classList.add("hidden");
   toast("Signed out.");
 }
 
-async function afterAuthChanged() {
-  setAuthUiSignedIn(Boolean(state.user));
-  await loadProfile();
+async function afterProfileChanged() {
+  setAuthUiSignedIn(Boolean(state.profile));
+  const isAdmin = state.profile?.role === "admin";
+  els.adminSection.classList.toggle("hidden", !isAdmin);
   await loadSeasons();
   await loadPlayers();
   await loadLeaderboard();
@@ -513,34 +513,18 @@ async function init() {
   const today = new Date().toISOString().slice(0, 10);
   els.matchDate.value = today;
 
-  const sessionResult = await supabase.auth.getSession();
-  state.user = sessionResult.data.session?.user ?? null;
-
   try {
-    await loadSeasons();
-    await loadLeaderboard();
-    if (state.user) {
-      await afterAuthChanged();
+    await loadProfile();
+    if (state.profile) {
+      await afterProfileChanged();
     } else {
+      await loadSeasons();
+      await loadLeaderboard();
       setAuthUiSignedIn(false);
     }
   } catch (error) {
     toast(error.message || "Initialization failed", true);
   }
-
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    state.user = session?.user ?? null;
-    if (state.user) {
-      try {
-        await afterAuthChanged();
-      } catch (error) {
-        toast(error.message || "Unable to refresh session data", true);
-      }
-    } else {
-      setAuthUiSignedIn(false);
-      els.adminSection.classList.add("hidden");
-    }
-  });
 }
 
 init();
